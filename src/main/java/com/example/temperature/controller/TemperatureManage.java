@@ -8,7 +8,6 @@ import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * @author xiaoyu
@@ -18,10 +17,6 @@ public class TemperatureManage {
 
     private final Semaphore semaphore;
 
-    private final ReentrantLock lock;
-
-    private boolean resourceArray[];
-
     private String provinceUrl;
     private String cityUrl;
     private String countyUrl;
@@ -29,13 +24,6 @@ public class TemperatureManage {
 
     public TemperatureManage(int count, String provinceUrl, String cityUrl, String countyUrl, String weatherUrl){
         this.semaphore = new Semaphore(count, true);
-        this.lock = new ReentrantLock(true);
-
-        resourceArray = new boolean[count];
-        for(int i = 0; i < count; i++){
-            resourceArray[i] = true;
-        }
-
         this.provinceUrl = provinceUrl;
         this.cityUrl = cityUrl;
         this.countyUrl = countyUrl;
@@ -45,23 +33,17 @@ public class TemperatureManage {
     public Optional<Integer> getTemperature(String province, String city, String county) {
         try {
             semaphore.acquire();
+            System.out.println("正在使用资源..." + Thread.currentThread().getName());
 
-            int id = getResourceId();
-            if (id >= 0){
-                System.out.println("正在使用资源：" + id);
+            Thread.sleep(1000);
 
-                Thread.sleep(1000);
-
-                Optional<Integer> optional = getTemperature2(province, city, county);
-
-                resourceArray[id] = true;
-                return optional;
-            }
+            Optional<Integer> optional = getTemperature2(province, city, county);
+            return optional;
         } catch (InterruptedException e) {
             e.printStackTrace();
         } finally {
             semaphore.release();
-            System.out.println("使用完释放资源...，当前可用数量：" + semaphore.availablePermits());
+            System.out.println("使用完释放资源...，剩余可用数量：" + semaphore.availablePermits());
         }
 
         return Optional.empty();
@@ -107,22 +89,6 @@ public class TemperatureManage {
         int temp = bigDecimal.setScale(0, BigDecimal.ROUND_UP).intValue();
 
         return Optional.of(temp);
-    }
-
-    private int getResourceId() {
-        lock.lock();
-        try {
-            for (int i = 0; i < resourceArray.length; i++){
-                if (resourceArray[i]){
-                    resourceArray[i] = false;
-                    return i;
-                }
-            }
-        } finally {
-            lock.unlock();
-        }
-
-        return -1;
     }
 
 }
